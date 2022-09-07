@@ -2,33 +2,33 @@
 
 pragma solidity ^0.8.4;
 
-// contract iecQuiz01{
-//     uint256 val_01;
-//     uint256 val_02;
-//     uint256 resultFinal;
+contract iecQuiz01{
+    uint256 val_01;
+    uint256 val_02;
+    uint256 resultFinal;
 
-//     function seData(uint256 _val01, uint256 _val02) public {
-//         resultFinal = _val01 + _val02;
-//     } 
+    function seData(uint256 _val01, uint256 _val02) public {
+        resultFinal = _val01 + _val02;
+    } 
 
-//     function getResult() public view returns (uint256){
-//         return resultFinal;
-//     } 
-// }
+    function getResult() public view returns (uint256){
+        return resultFinal;
+    } 
+}
 
-// contract iecQuiz02{
+contract iecQuiz02{
 
-//     mapping (address => uint256) public age;
+    mapping (address => uint256) public age;
 
-//     function setAge(uint256 _age) public {
-//         age[msg.sender]= _age;
-//     }
+    function setAge(uint256 _age) public {
+        age[msg.sender]= _age;
+    }
 
-//     function getAge() public view returns(uint256){
-//         return age[msg.sender];
-//     }
+    function getAge() public view returns(uint256){
+        return age[msg.sender];
+    }
 
-// }
+}
 
 contract iecQuiz03{
 
@@ -81,4 +81,75 @@ contract iecQuiz03{
     } 
 
     
+}
+
+contract IecQuiz03b {
+        address private owner;
+        uint256 private rollNo = 1;
+
+   struct Student{
+       string name;
+       uint256 age;
+       uint256 marks;
+       string gender;
+       uint8 class;
+   }
+
+   Student[] students;
+
+   constructor() {
+       owner = msg.sender;
+   }
+   modifier onlyOwner() {
+       require(msg.sender == owner, "You are not allowed to do that");
+       _;
+   }
+
+   function addData(string memory _name, uint256 _age, uint256 _marks,string memory _gender, uint8 _class ) public onlyOwner {
+       students.push(Student(_name,_age,_marks,_gender,_class));
+       rollNo++;
+   }
+
+
+    function updateData(uint256 _rollNo,string memory _name, uint256 _age, uint256 _marks,string memory _gender, uint8 _class ) public onlyOwner {
+
+       students[_rollNo - 1] = Student(_name,_age,_marks,_gender,_class);
+
+    }
+
+        function showData(uint256 _rollNo) public view returns(Student memory) {
+            return students[_rollNo - 1];
+    }
+
+    function  allData() public view onlyOwner returns(Student[] memory) {
+    return students;
+}
+
+    function highestMarks() public view returns (uint256) {
+             uint256 result;    
+        for(uint256 i = 0; i<students.length; i++) {
+            if(students[i].marks > result ) {
+            result = students[i].marks;
+            }
+        }
+        return result;
+    }
+    
+    function lowestMarks() public view returns (uint256) {
+             uint256 result; 
+        for(uint256 i = 0; i<students.length; i++) {
+             if(i == 0) {
+                 result = students[i].marks;
+             }
+          if(students[i].marks < result) {
+            result = students[i].marks;
+            }
+        }
+        return result;
+    }
+
+    function rollNumber() public view returns(uint256) {
+        return rollNo - 1;
+    }
+
 }
