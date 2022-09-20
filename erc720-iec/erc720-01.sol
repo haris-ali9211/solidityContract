@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.8;
 
-contract MyToken 
-{
+contract iecToken{
+
     address admin;
 
     string public constant name = "erc720-alpha";
     string public constant symbol = "alpha";
-    uint public totalSupply = 1000;
-    uint256 public immutable decimals; 
+    uint public totalSupply = 1000 * 10 ** 18;
+    uint256 public immutable decimals;  
  
     event Transfer(address indexed recipient, address indexed to, uint amount);
     event Allowance(address indexed from, address indexed to, uint amount);
@@ -23,7 +23,7 @@ contract MyToken
         decimals = 18;
     } 
 
-    modifier onlyAdmin()
+    modifier onlyAdmin() 
     {
         require(msg.sender == admin,"You are not allowed to do that");
         _;
@@ -37,7 +37,7 @@ contract MyToken
     function transfer(address reciever, uint amount) public returns(bool)
     {
         require(balances[msg.sender] >= amount,"You dont have enough tokens to transfer");
-        balances[msg.sender] -= amount; 
+        balances[msg.sender] -= amount;
         balances[reciever] += amount;
 
         emit Transfer(msg.sender,reciever,amount);
@@ -57,5 +57,29 @@ contract MyToken
         balances[user] -= amount;
         totalSupply -= amount;
         return totalSupply;
+    }
+
+    function allowance(address _owner, address _spender) public view returns(uint)
+    {
+       return allowed[_owner][_spender];
+    }
+
+    function approval(address _spender, uint _value) public returns(bool success) 
+    {
+         allowed[msg.sender][_spender] = _value;
+         
+         emit Allowance(msg.sender,_spender,_value);
+         return true;
+    } 
+
+    function transferFrom(address _from, address _to, uint _value) public returns(bool success) 
+    {
+        uint allowedTokens = allowed[_from][msg.sender];
+        require(balances[_from] >= _value && allowedTokens>=_value);
+        balances[_to] += _value;
+        balances[_from] -= _value;
+        allowed[_from][msg.sender] -= _value;
+        emit Transfer(_from, _to, _value);
+        return true;
     }
 }
