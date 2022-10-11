@@ -2,10 +2,9 @@
 pragma solidity ^0.8.7;
 
 contract MyToken {
-
-////////////////////////////State Variables//////////////////////////////////////////
+    ////////////////////////////State Variables//////////////////////////////////////////
     address private admin;
-    string public constant name = "DEX COIN";
+    string public constant name = "Test";
     string public constant symbol = "DC";
     uint256 public totalSupply = 10000 ether;
     uint256 public remainingTokens = totalSupply;
@@ -28,40 +27,38 @@ contract MyToken {
     mapping(address => uint256) private balances;
     mapping(address => mapping(address => uint256)) private allowed;
 
-////////////////////////Constructor////////////////////////////////////
+    ////////////////////////Constructor////////////////////////////////////
     constructor() {
         admin = msg.sender;
         decimals = 18;
         time = block.timestamp;
     }
 
-/////////////////////////////Modifier/////////////////////////////////
+    /////////////////////////////Modifier/////////////////////////////////
     modifier onlyAdmin() {
         require(msg.sender == admin, "You are not allowed to do that");
         _;
     }
-/////////////////////////////Main Functions/////////////////////////////////
+
+    /////////////////////////////Main Functions/////////////////////////////////
     function buyTokens(uint256 _value) external payable returns (bool) {
         remainingTokens = remainingTokens - (VALUE * _value);
         require(remainingTokens > 0, "We dont have that much tokens rightnow");
-        if(block.timestamp <= time + 30 days) {
-   require(msg.value >= firstMonthPrice * _value);
-        balances[msg.sender] += VALUE * _value;
-        return true;
-        }
-        else if(block.timestamp <= time + 60 days) {
+        if (block.timestamp <= time + 30 days) {
+            require(msg.value >= firstMonthPrice * _value);
+            balances[msg.sender] += VALUE * _value;
+            return true;
+        } else if (block.timestamp <= time + 60 days) {
             require(msg.value >= secondMonthPrice * _value);
-        balances[msg.sender] += VALUE * _value;
-        return true; 
-        }else {
-             require(msg.value >= finalPrice * _value);
-        balances[msg.sender] += VALUE * _value;
-        return true; 
+            balances[msg.sender] += VALUE * _value;
+            return true;
+        } else {
+            require(msg.value >= finalPrice * _value);
+            balances[msg.sender] += VALUE * _value;
+            return true;
         }
-     
     }
 
- 
     function withdrawMoney() external onlyAdmin {
         require(
             address(this).balance > 0,
@@ -70,7 +67,10 @@ contract MyToken {
         payable(admin).transfer(address(this).balance);
     }
 
-    function transfer(address reciever, uint256 amount) external returns (bool) {
+    function transfer(address reciever, uint256 amount)
+        external
+        returns (bool)
+    {
         require(
             balances[msg.sender] >= (VALUE * amount),
             "You dont have enough tokens to transfer"
@@ -109,25 +109,22 @@ contract MyToken {
         uint256 _value
     ) public returns (bool success) {
         uint256 allowedTokens = allowed[_from][msg.sender];
-        require(
-            balances[_from] >=  _value &&
-                allowedTokens >=   _value
-        );
-        balances[_to] +=   _value;
-        balances[_from] -=   _value;
-        allowed[_from][msg.sender] -=  _value;
+        require(balances[_from] >= _value && allowedTokens >= _value);
+        balances[_to] += _value;
+        balances[_from] -= _value;
+        allowed[_from][msg.sender] -= _value;
 
-        emit Transfer(_from, _to,   _value);
+        emit Transfer(_from, _to, _value);
         return true;
     }
 
-///////////////////////Getter Functions////////////////////////////////////
+    ///////////////////////Getter Functions////////////////////////////////////
 
-       function Contractbalance() public view returns (uint256) {
+    function Contractbalance() public view returns (uint256) {
         return address(this).balance;
     }
 
-     function allowance(address _owner, address _spender)
+    function allowance(address _owner, address _spender)
         public
         view
         returns (uint256)
@@ -139,12 +136,11 @@ contract MyToken {
         return balances[user];
     }
 
-    function owner() public view returns(address) {
+    function owner() public view returns (address) {
         return admin;
     }
 
-    function realTime() public view returns(uint256){
+    function realTime() public view returns (uint256) {
         return block.timestamp;
-    } 
-
+    }
 }
