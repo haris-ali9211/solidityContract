@@ -2,6 +2,19 @@
 pragma solidity ^0.8.7;
 
 import "hardhat/console.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import "@openzeppelin/contracts/interfaces/IERC2981.sol";
+
+interface IERC721 {
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+
+    function safeTransferFrom(
+        address _from,
+        address _to,
+        uint256 _amount
+    ) external;
+}
 
 error SuperDapps__StakeCountLimitReached(uint256 time);
 error SuperDapps__StakeTimeNotCompleted(uint256 time);
@@ -12,7 +25,7 @@ error SuperDapps__SelectCorrectPlan(
     uint256 planC
 );
 
-contract SuperDappsStake3Plan {
+contract SuperDappsStake3Plan is Ownable, IERC721Receiver {
     struct NFTDetails {
         address owner;
         uint256 firstTokenId;
@@ -26,10 +39,12 @@ contract SuperDappsStake3Plan {
         uint256 stakeCounter;
     }
 
+    IERC721 private immutable i_erc721helper;
+
     uint256 constant futureTimestamp12 = 1 * 60; //twelveMinutes
     uint256 constant futureTimestamp24 = 2 * 60; //twentyFourMinutes
     uint256 constant futureTimestamp36 = 3 * 60; //thirtySixMinutes
-    uint256 constant futureTimestampNonResponsiveUser = 2 * 60; //NonResponsiveUser
+    uint256 constant futureTimestampNonResponsiveUser = 10 * 60; //NonResponsiveUser
 
     mapping(uint256 => NFTDetails) public s_nftDetails;
 
@@ -49,7 +64,23 @@ contract SuperDappsStake3Plan {
         string _type
     );
 
-    function stakeNFT(uint256 _plan, uint256 _tokenId) public {
+    modifier isOwner(uint256 tokenId, address spender) {
+        address owner = i_erc721helper.ownerOf(tokenId);
+        if (spender != owner) {
+            revert SuperDapps__NotOwner();
+        }
+        _;
+    }
+
+    constructor(address _collectionAddr) {
+        i_erc721helper = IERC721(_collectionAddr);
+    }
+
+    function stakeNFT(uint256 _plan, uint256 _tokenId)
+        external
+        isOwner(_tokenId, _msgSender())
+        returns (string memory message)
+    {
         console.log("==>Start");
         NFTDetails memory details = s_nftDetails[_tokenId];
         if (details.stakeCounter >= 2) {
@@ -59,11 +90,15 @@ contract SuperDappsStake3Plan {
 
         if (details.stakeCounter == 0) {
             console.log("==>details.stakeCounter == 0");
-            // i_erc721helper.safeTransferFrom(_msgSender(), address(this), _tokenId);
+            i_erc721helper.safeTransferFrom(
+                _msgSender(),
+                address(this),
+                _tokenId
+            );
             if (_plan == 1) {
                 console.log("==>_plan == 1");
                 s_nftDetails[_tokenId] = NFTDetails(
-                    msg.sender,
+                    _msgSender(),
                     _tokenId,
                     0,
                     block.timestamp,
@@ -115,31 +150,56 @@ contract SuperDappsStake3Plan {
                 "NFTStake",
                 details.stakeCounter
             );
-        }
-        //  else if (getNonResponceUserTime()) {
-        //     console.log("==>futureTimestampNonResponsiveUser");
-        //     //bool success = i_erc721helper.safeTransferFrom(address(this), _msgSender(), _tokenId);
-        //     bool success = true;
-        //     if (!success) {
-        //         // i_erc721helper.safeTransferFrom(address(this), _msgSender(), _tokenId);
-        //         delete (s_nftDetails[_tokenId]);
-        //         emit NFTUnStaked(
-        //             msg.sender,
-        //             _tokenId,
-        //             block.timestamp,
-        //             "NFTStake"
-        //         );
-        //     }
-        // }
-        else if (details.stakeCounter == 1) {
+            return "1 Nft Staked";
+        } else if (details.stakeCounter == 1) {
             console.log("==>details.stakeCounter == 1");
+            uint256 time = details.firstNft_end +
+                futureTimestampNonResponsiveUser;
+            console.log(
+                "==>Time",
+                details.firstNft_end,
+                futureTimestampNonResponsiveUser
+            );
+
             if (block.timestamp < details.firstNft_end) {
                 console.log("==>SuperDapps__StakeTimeNotCompleted");
                 revert SuperDapps__StakeTimeNotCompleted(block.timestamp);
+            } else if (getNonResponceUserTime(time)) {
+                console.log("==>futureTimestampNonResponsiveUser");
+                i_erc721helper.safeTransferFrom(
+                    address(this),
+                    _msgSender(),
+                    _tokenId
+                );
+                address owner1 = i_erc721helper.ownerOf(_tokenId);
+                if (owner1 != address(this)) {
+                    delete (s_nftDetails[_tokenId]);
+                    emit NFTUnStaked(
+                        msg.sender,
+                        _tokenId,
+                        block.timestamp,
+                        "NFTStake"
+                    );
+                    return "Nft unStaked due to NonResponsiveUser";
+                } else {
+                    console.log("==>else in futureTimestampNonResponsiveUser");
+                }
             }
-            //bool success = i_erc721helper.safeTransferFrom(address(this), _msgSender(), _tokenId);
-            bool success = true;
-            if (!success) {
+
+            i_erc721helper.safeTransferFrom(
+                address(this),
+                _msgSender(),
+                _tokenId
+            );
+
+            i_erc721helper.safeTransferFrom(
+                _msgSender(),
+                address(this),
+                s_nftDetails[_tokenId].firstTokenId
+            );
+            address owner = i_erc721helper.ownerOf(_tokenId);
+            if (owner != address(this)) {
+                console.log("!success");
                 // i_erc721helper.safeTransferFrom(address(this), _msgSender(), _tokenId);
                 delete (s_nftDetails[_tokenId]);
                 emit NFTUnStaked(
@@ -148,8 +208,9 @@ contract SuperDappsStake3Plan {
                     block.timestamp,
                     "NFTStake"
                 );
+                return "Nft unStaked due to Reject transcation";
             }
-            // i_erc721helper.safeTransferFrom(_msgSender(), address(this), s_nftDetails[_tokenId].firstTokenId);
+
             if (_plan == 1) {
                 console.log("==>_plan ==> 1");
                 s_nftDetails[_tokenId].secondTokenId = _tokenId;
@@ -189,6 +250,7 @@ contract SuperDappsStake3Plan {
                 "NFTStake",
                 details.stakeCounter
             );
+            return "2 Nft Staked";
         } else {
             revert SuperDapps__StakeCountLimitReached(block.timestamp);
         }
@@ -197,23 +259,36 @@ contract SuperDappsStake3Plan {
     function unStakeNFT(uint256 _tokenId) public {
         NFTDetails memory details = s_nftDetails[_tokenId];
         if (details.owner != msg.sender) {
+            console.log("etails.owner !=");
             revert SuperDapps__NotOwner();
         }
         if (block.timestamp < details.secondNft_end) {
+            console.log("SuperDapps__StakeTimeNotCompleted");
             revert SuperDapps__StakeTimeNotCompleted(block.timestamp);
         }
+        console.log("unstake");
 
-        // i_erc721helper.safeTransferFrom(address(this), _msgSender(), _tokenId);
+        i_erc721helper.safeTransferFrom(address(this), _msgSender(), _tokenId);
         delete (s_nftDetails[_tokenId]);
         emit NFTUnStaked(msg.sender, _tokenId, block.timestamp, "NFTStake");
     }
 
-        uint256 time = block.timestamp + futureTimestampNonResponsiveUser;
-    function getNonResponceUserTime() public view {
+    function getNonResponceUserTime(uint256 time) public view returns (bool) {
         if (block.timestamp > time) {
             console.log("if==>", block.timestamp, time);
+            return true;
         } else {
             console.log("else==>", block.timestamp, time);
+            return false;
         }
+    }
+
+    function onERC721Received(
+        address operator,
+        address from,
+        uint256 tokenId,
+        bytes calldata data
+    ) external pure override returns (bytes4) {
+        return IERC721Receiver.onERC721Received.selector;
     }
 }
